@@ -1,1 +1,378 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đánh Giá Hoạt Động Nhóm (9 Thành Viên)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+        body { font-family: 'Roboto', sans-serif; background-color: #f0ebf8; }
+        .form-header { border-top: 8px solid #673ab7; }
+        .active-tab { border-bottom: 3px solid #673ab7; color: #673ab7; background-color: #e8eaf6; }
+        .inactive-tab { color: #5f6368; }
+        /* Cố định cột đầu tiên khi cuộn ngang */
+        .sticky-col { position: sticky; left: 0; background-color: white; z-index: 10; border-right: 2px solid #e5e7eb; }
+        input[type="number"] { min-width: 60px; }
+        /* Loading Overlay */
+        #loadingOverlay { background: rgba(255, 255, 255, 0.8); z-index: 50; }
+    </style>
+</head>
+<body class="bg-purple-50 min-h-screen pb-10 relative">
 
+    <!-- Loading UI -->
+    <div id="loadingOverlay" class="fixed inset-0 hidden flex-col items-center justify-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700 mb-4"></div>
+        <p class="text-purple-700 font-bold">Đang gửi dữ liệu lên Google Sheet...</p>
+    </div>
+
+    <!-- Main Container -->
+    <div class="max-w-6xl mx-auto pt-8 px-4">
+        
+        <!-- Tabs -->
+        <div class="bg-white rounded-t-lg shadow-sm flex overflow-hidden mb-4 text-sm md:text-base">
+            <button onclick="switchTab('member')" id="tab-member" class="flex-1 py-4 text-center font-medium active-tab hover:bg-gray-50 transition">
+                <i class="fas fa-user mr-2"></i>Thành Viên
+            </button>
+            <button onclick="switchTab('leader')" id="tab-leader" class="flex-1 py-4 text-center font-medium inactive-tab hover:bg-gray-50 transition">
+                <i class="fas fa-users-cog mr-2"></i>Nhóm Trưởng
+            </button>
+            <button onclick="switchTab('lecturer')" id="tab-lecturer" class="flex-1 py-4 text-center font-medium inactive-tab hover:bg-gray-50 transition">
+                <i class="fas fa-chalkboard-teacher mr-2"></i>Giảng Viên
+            </button>
+        </div>
+
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md form-header p-6 mb-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Đánh Giá Kỹ Năng Làm Việc Nhóm</h1>
+            <p class="text-gray-600 mb-2">Hệ thống đánh giá dành cho nhóm 9 thành viên.</p>
+            <div class="flex items-center text-sm text-green-600 bg-green-50 p-2 rounded w-fit" id="autoSaveStatus" style="display: none;">
+                <i class="fas fa-check-circle mr-2"></i> Đã tự động lưu nháp
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form id="evaluationForm" class="space-y-4" onsubmit="return false;">
+            
+            <!-- Info -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-medium mb-4">Thông tin chung</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tên Nhóm / Mã Nhóm <span class="text-red-500">*</span></label>
+                        <input type="text" id="groupName" oninput="saveDraft()" class="w-full py-2 px-3 bg-gray-50 border-b-2 border-gray-300 focus:border-purple-600 outline-none transition" placeholder="Ví dụ: Nhóm 01">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Người đánh giá (Họ tên) <span class="text-red-500">*</span></label>
+                        <input type="text" id="evaluatorName" oninput="saveDraft()" class="w-full py-2 px-3 bg-gray-50 border-b-2 border-gray-300 focus:border-purple-600 outline-none transition" placeholder="Nguyễn Văn A">
+                    </div>
+                </div>
+            </div>
+
+            <!-- MEMBER FORM -->
+            <div id="form-member" class="block">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+                    <h2 class="text-lg font-medium text-gray-800 border-b pb-2 mb-4">BẢNG 2: ĐÁNH GIÁ CÁ NHÂN (Theo Tuần)</h2>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">Tuần đánh giá:</label>
+                        <select id="weekSelect" onchange="saveDraft()" class="mt-1 block w-full md:w-1/3 py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm">
+                            <option value="1">Tuần 1</option>
+                            <option value="2">Tuần 2</option>
+                            <option value="3">Tuần 3</option>
+                            <option value="4">Tuần 4</option>
+                            <option value="5">Tuần 5</option>
+                        </select>
+                    </div>
+                    <div class="space-y-6" id="memberCriteriaContainer"></div>
+                </div>
+            </div>
+
+            <!-- LEADER FORM -->
+            <div id="form-leader" class="hidden">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+                    <h2 class="text-lg font-medium text-gray-800 border-b pb-2 mb-4">BẢNG 1: ĐÁNH GIÁ TỔNG HỢP (NHÓM TRƯỞNG)</h2>
+                    <div class="overflow-x-auto pb-4">
+                        <table class="min-w-full border-collapse border border-gray-200 text-sm">
+                            <thead class="bg-gray-100"><tr id="leaderHeaderRow"><th class="border p-2 text-left min-w-[250px] sticky-col">Tiêu chí</th></tr></thead>
+                            <tbody id="leaderTableBody"></tbody>
+                            <tfoot class="bg-purple-50 font-bold"><tr id="leaderFooterRow"><td class="border p-2 text-right sticky-col bg-purple-50 shadow-sm">TỔNG CỘNG:</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LECTURER FORM -->
+            <div id="form-lecturer" class="hidden">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+                    <h2 class="text-lg font-medium text-gray-800 border-b pb-2 mb-4">BẢNG 3: GIẢNG VIÊN ĐÁNH GIÁ</h2>
+                    <div class="overflow-x-auto pb-4">
+                        <table class="min-w-full border-collapse border border-gray-200 text-sm">
+                            <thead class="bg-gray-100"><tr id="lecturerHeaderRow"><th class="border p-2 text-left min-w-[250px] sticky-col">Tiêu chí</th></tr></thead>
+                            <tbody id="lecturerTableBody"></tbody>
+                            <tfoot class="bg-purple-50 font-bold"><tr id="lecturerFooterRow"><td class="border p-2 text-right sticky-col bg-purple-50 shadow-sm">TỔNG CỘNG:</td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-lg shadow-md mt-6 sticky bottom-4 border-t-4 border-purple-500 gap-4">
+                <button type="button" onclick="clearData()" class="text-red-500 font-medium px-4 py-2 hover:bg-red-50 rounded transition w-full md:w-auto">
+                    <i class="fas fa-trash-alt mr-2"></i>Xóa dữ liệu
+                </button>
+                <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <button type="button" onclick="exportToCSV()" class="bg-green-600 text-white font-bold py-3 px-6 rounded shadow hover:bg-green-700 transition transform hover:-translate-y-1">
+                        <i class="fas fa-file-csv mr-2"></i> Tải file CSV
+                    </button>
+                    <!-- Nút Gửi Online Mới -->
+                    <button type="button" onclick="submitToGoogleSheet()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded shadow hover:bg-blue-700 transition transform hover:-translate-y-1">
+                        <i class="fas fa-paper-plane mr-2"></i> Gửi Online
+                    </button>
+                </div>
+            </div>
+
+        </form>
+        <div class="text-center text-gray-400 text-xs mt-8 mb-4">Dữ liệu được lưu tự động trên trình duyệt.</div>
+    </div>
+
+    <!-- CONFIGURATION & SCRIPT -->
+    <script>
+        // ==========================================
+        // CẤU HÌNH LIÊN KẾT GOOGLE SHEET
+        // Hãy dán Web App URL của bạn vào giữa cặp dấu ngoặc kép bên dưới
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = 'DÁN_LINK_WEB_APP_URL_CUA_BAN_VAO_DAY'; 
+        // ==========================================
+
+        const members = ['NT', 'TV2', 'TV3', 'TV4', 'TV5', 'TV6', 'TV7', 'TV8', 'TV9'];
+        
+        const memberCriteriaData = [
+            { title: "1. THAM DỰ & PHỐI HỢP TRONG NHÓM", desc: "Mức 1: Vắng >20% | Mức 2: Vắng 10-20% | Mức 3: Vắng <10%, tích cực." },
+            { title: "2. QUẢN LÝ CÔNG VIỆC", desc: "Mức 1: Trễ hạn | Mức 2: Đúng hạn | Mức 3: Chủ động, sớm hạn." },
+            { title: "3. GIAO TIẾP", desc: "Mức 1: Kém | Mức 2: Khá | Mức 3: Tốt, rõ ràng." },
+            { title: "4. KỸ NĂNG GIẢI QUYẾT VẤN ĐỀ", desc: "Mức 1: Kém | Mức 2: Khá | Mức 3: Tốt, logic." }
+        ];
+
+        const leaderCriteria = ["1. THAM DỰ & PHỐI HỢP", "2. QUẢN LÝ CÔNG VIỆC", "3. GIAO TIẾP", "4. GIẢI QUYẾT VẤN ĐỀ"];
+        const lecturerCriteria = ["1. CHUYÊN CẦN", "2. NGHIÊM TÚC", "3. MỨC ĐỘ THAM GIA", "4. MỨC ĐỘ TIẾN BỘ", "5. NHÓM TRƯỞNG"];
+        let currentRole = 'member';
+
+        window.onload = function() {
+            renderMemberForm();
+            renderTableStructure('leader', leaderCriteria);
+            renderTableStructure('lecturer', lecturerCriteria);
+            loadDraft();
+        };
+
+        // --- RENDERING ---
+        function renderMemberForm() {
+            const container = document.getElementById('memberCriteriaContainer');
+            container.innerHTML = '';
+            memberCriteriaData.forEach((crit, index) => {
+                container.innerHTML += `
+                <div class="border p-4 rounded bg-gray-50">
+                    <h3 class="font-bold text-gray-700">${crit.title}</h3>
+                    <p class="text-xs text-gray-500 mb-3 italic">${crit.desc}</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="text-sm font-medium text-gray-600">Tự đánh giá:</label><input type="number" step="0.5" min="0" max="2.5" id="mem_c${index+1}_self" oninput="saveDraft()" class="w-full mt-1 p-2 border rounded" placeholder="0 - 2.5"></div>
+                        <div><label class="text-sm font-medium text-gray-600">Nhóm đánh giá:</label><input type="number" step="0.5" min="0" max="2.5" id="mem_c${index+1}_group" oninput="saveDraft()" class="w-full mt-1 p-2 border rounded" placeholder="0 - 2.5"></div>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function renderTableStructure(prefix, criteriaList) {
+            const headerRow = document.getElementById(`${prefix}HeaderRow`);
+            while (headerRow.children.length > 1) { headerRow.removeChild(headerRow.lastChild); }
+            members.forEach(mem => {
+                const th = document.createElement('th');
+                th.className = 'border p-2 text-center w-20 min-w-[60px]';
+                th.textContent = mem;
+                headerRow.appendChild(th);
+            });
+
+            const tbody = document.getElementById(`${prefix}TableBody`);
+            tbody.innerHTML = '';
+            criteriaList.forEach((criteria, idx) => {
+                const tr = document.createElement('tr');
+                const tdName = document.createElement('td');
+                tdName.className = 'border p-2 text-sm text-gray-700 sticky-col bg-white';
+                tdName.textContent = criteria;
+                tr.appendChild(tdName);
+                members.forEach(mem => {
+                    const td = document.createElement('td');
+                    td.className = 'border p-1 text-center';
+                    const input = document.createElement('input');
+                    input.type = 'number'; input.step = '0.5'; input.min = '0'; input.max = '2.5';
+                    input.className = 'w-full p-1 text-center text-sm outline-none focus:bg-purple-100 transition rounded';
+                    input.id = `${prefix}_c${idx + 1}_${mem}`;
+                    input.oninput = () => { calculateTotal(prefix); saveDraft(); };
+                    td.appendChild(input);
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            const footerRow = document.getElementById(`${prefix}FooterRow`);
+            while (footerRow.children.length > 1) { footerRow.removeChild(footerRow.lastChild); }
+            members.forEach(mem => {
+                const td = document.createElement('td');
+                td.className = 'border p-2 text-center font-bold text-purple-700';
+                td.id = `${prefix}_sum_${mem}`;
+                td.textContent = '0';
+                footerRow.appendChild(td);
+            });
+        }
+
+        // --- LOGIC ---
+        function calculateTotal(prefix) {
+            const criteriaList = prefix === 'leader' ? leaderCriteria : lecturerCriteria;
+            members.forEach(mem => {
+                let total = 0;
+                for(let i = 1; i <= criteriaList.length; i++) {
+                    total += parseFloat(document.getElementById(`${prefix}_c${i}_${mem}`).value) || 0;
+                }
+                document.getElementById(`${prefix}_sum_${mem}`).innerText = total.toFixed(1);
+            });
+        }
+
+        function switchTab(role) {
+            currentRole = role;
+            ['member', 'leader', 'lecturer'].forEach(r => {
+                const btn = document.getElementById(`tab-${r}`);
+                const form = document.getElementById(`form-${r}`);
+                if (r === role) {
+                    btn.classList.add('active-tab'); btn.classList.remove('inactive-tab');
+                    form.classList.remove('hidden'); form.classList.add('block');
+                } else {
+                    btn.classList.remove('active-tab'); btn.classList.add('inactive-tab');
+                    form.classList.add('hidden'); form.classList.remove('block');
+                }
+            });
+        }
+
+        // --- STORAGE ---
+        function saveDraft() {
+            const inputs = document.querySelectorAll('input, select');
+            const data = {};
+            inputs.forEach(input => { if (input.id) data[input.id] = input.value; });
+            localStorage.setItem('danhGiaNhomData', JSON.stringify(data));
+            const status = document.getElementById('autoSaveStatus');
+            status.style.display = 'flex';
+            setTimeout(() => { status.style.display = 'none'; }, 2000);
+        }
+
+        function loadDraft() {
+            const data = JSON.parse(localStorage.getItem('danhGiaNhomData'));
+            if (data) {
+                Object.keys(data).forEach(key => {
+                    const el = document.getElementById(key);
+                    if (el) el.value = data[key];
+                });
+                calculateTotal('leader');
+                calculateTotal('lecturer');
+            }
+        }
+
+        function clearData() {
+            if(confirm("Xóa toàn bộ dữ liệu?")) {
+                localStorage.removeItem('danhGiaNhomData');
+                document.getElementById("evaluationForm").reset();
+                calculateTotal('leader');
+                calculateTotal('lecturer');
+            }
+        }
+
+        function exportToCSV() {
+             // ... Code cũ giữ nguyên, để tiết kiệm không gian ...
+             // Logic giống file trước
+             const groupName = document.getElementById('groupName').value.trim() || "Nhom_Chua_Dat_Ten";
+             const evaluator = document.getElementById('evaluatorName').value.trim() || "An_danh";
+             let csvContent = "\uFEFF"; 
+             if (currentRole === 'member') {
+                const week = document.getElementById('weekSelect').value;
+                csvContent += `LOAI PHIEU,DANH GIA CA NHAN\nNguoi danh gia,${evaluator}\nNhom,${groupName}\nTuan,${week}\n\nTieu chi,Tu danh gia,Nhom danh gia\n`;
+                memberCriteriaData.forEach((crit, idx) => {
+                    csvContent += `"${crit.title}",${document.getElementById(`mem_c${idx+1}_self`).value||0},${document.getElementById(`mem_c${idx+1}_group`).value||0}\n`;
+                });
+             } else {
+                const prefix = currentRole === 'leader' ? 'leader' : 'lecturer';
+                const roleName = currentRole === 'leader' ? 'NHOM TRUONG' : 'GIANG VIEN';
+                const criteriaList = currentRole === 'leader' ? leaderCriteria : lecturerCriteria;
+                csvContent += `LOAI PHIEU,${roleName}\nNguoi danh gia,${evaluator}\nNhom,${groupName}\n\nTieu chi,${members.join(',')}\n`;
+                criteriaList.forEach((crit, idx) => {
+                    let row = [`"${crit}"`];
+                    members.forEach(mem => row.push(document.getElementById(`${prefix}_c${idx+1}_${mem}`).value || 0));
+                    csvContent += row.join(',') + "\n";
+                });
+             }
+             const link = document.createElement("a");
+             link.href = URL.createObjectURL(new Blob([csvContent], {type: 'text/csv;charset=utf-8;'}));
+             link.download = `${groupName}_${currentRole}.csv`;
+             document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        // --- GOOGLE SHEETS INTEGRATION ---
+        function submitToGoogleSheet() {
+            // 1. Kiểm tra cấu hình
+            if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes("DÁN_LINK")) {
+                alert("Vui lòng cấu hình Web App URL trong file code trước khi sử dụng tính năng này!");
+                return;
+            }
+
+            const groupName = document.getElementById('groupName').value.trim();
+            const evaluator = document.getElementById('evaluatorName').value.trim();
+            if(!groupName || !evaluator) {
+                alert("Vui lòng nhập Tên nhóm và Người đánh giá!");
+                return;
+            }
+
+            // 2. Thu thập dữ liệu
+            let payload = {
+                role: currentRole,
+                groupName: groupName,
+                evaluator: evaluator,
+                week: document.getElementById('weekSelect').value,
+                scores: []
+            };
+
+            if (currentRole === 'member') {
+                memberCriteriaData.forEach((crit, idx) => {
+                    payload.scores.push(document.getElementById(`mem_c${idx+1}_self`).value || 0);
+                    payload.scores.push(document.getElementById(`mem_c${idx+1}_group`).value || 0);
+                });
+            } else {
+                const prefix = currentRole === 'leader' ? 'leader' : 'lecturer';
+                const criteriaList = currentRole === 'leader' ? leaderCriteria : lecturerCriteria;
+                payload.week = "N/A"; // Leader/Lecturer ko cần tuần
+                criteriaList.forEach((crit, idx) => {
+                    members.forEach(mem => {
+                        payload.scores.push(document.getElementById(`${prefix}_c${idx+1}_${mem}`).value || 0);
+                    });
+                });
+            }
+
+            // 3. Gửi dữ liệu
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            
+            // Sử dụng mode: 'no-cors' hoặc text/plain để tránh lỗi CORS
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors", 
+                headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify(payload)
+            })
+            .then(response => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                alert("Đã gửi dữ liệu thành công! (Dữ liệu sẽ xuất hiện trong Google Sheet sau vài giây)");
+            })
+            .catch(error => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                console.error('Error:', error);
+                alert("Có lỗi xảy ra khi gửi dữ liệu.");
+            });
+        }
+    </script>
+</body>
+</html>
